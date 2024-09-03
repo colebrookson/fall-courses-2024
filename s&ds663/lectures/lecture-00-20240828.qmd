@@ -1,0 +1,53 @@
+---
+title: S&DS 663 - Lecture 01
+date: 2024-08-28
+format:
+   pdf: 
+     toc: true
+---
+
+# Topics that we'll cover
+
+    - computational complexity
+    - numerical analysis 
+    - linear algebra
+    - automatic differentiation 
+    - condition numbers 
+
+# Goals of the course
+
+    - $\epsilon = 10^{-16}$ - about math on a computer 
+    - singular value decomposition 
+    - we will all fail in this course 
+
+# Some applications 
+
+    1. worst thing you can do is get everything right 
+    2. create your own approach 
+    3. Roy will lie to us  
+    4. not for everyone
+    5. messy 
+    6. the course is what you make of it
+
+# How to make the most out of this course
+
+    1. Show him something interesting 
+    2. Leadership 
+
+# Reg
+
+    1. You don't have to do all the homework 
+        - let's say there's 4 questions on the hw, and the first question just feels wrong and isn't working, then just keep following that
+    2. share mistakes 
+    3. HW policies 
+    4. Things MUST compile or you tell him it why you think it doesn't compile 
+
+# Things that are unacceptable
+
+    1. shaming 
+    2. lying 
+    3. code that doesn't compile 
+    4. appeal to authority 
+
+# Homework 
+- he lied at some point, figure out where 
