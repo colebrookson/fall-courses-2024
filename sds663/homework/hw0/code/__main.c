@@ -5,11 +5,13 @@
 
 int main()
 {
-    double v;       // the output of the mypow() function
-    double x = 1.5; // base
-    int n = 1;      // exponent
+    double v; // the output of the mypow() function
+    int f;    // the output of the factorial function
+    int b;    // the output of the binomial coef function
     //
     // The power question is implemented here
     //
-    v = mypow(x, n);
+    v = mypow(1.5, 2);
+    f = myfact(10);
+    b = mybinom(10, 2);
 }
