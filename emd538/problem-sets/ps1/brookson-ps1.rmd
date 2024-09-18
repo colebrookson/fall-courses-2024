@@ -1,0 +1,117 @@
+---
+title: EMD538 Problem Set 1 
+author: Cole Brookson
+date: 18 Semptember, 2024
+output:
+    pdf_document: default
+---
+
+Consider the data presented by Greenwood (1931) on the distribution of secondary measles cases among households with 1 index case and m = 4 contacts.
+
+```{r, echo=FALSE, name="setup", results=FALSE}
+# Number of contacts ranges 1 to 10 (columns)
+contacts <- 1:10
+
+# Number of contacts infected ranges 0 to 7 (rows)
+infect <- 0:7
+
+# Number of households observed in which "infect"=i (rows) out of "contacts"=m
+# (columns) members were infected
+infect_freq <- matrix(c(
+    340, 197, 84, 60, 25, 11, 3, 2, 1, 0,
+    164, 104, 60, 29, 15, 6, 4, 2, 0, 0,
+    0, 57, 57, 25, 9, 4, 0, 3, 0, 1,
+    0, 0, 27, 11, 10, 3, 3, 3, 0, 0,
+    0, 0, 0, 7, 1, 0, 2, 0, 0, 0,
+    0, 0, 0, 0, 1, 1, 3, 0, 0, 0,
+    rep(0, 5), 1, rep(0, 4),
+    rep(0, 6), 1, 1, 0, 0
+), nrow = 8, byrow = T)
+
+colnames(infect_freq) <- paste0("Num_Contact ", contacts)
+rownames(infect_freq) <- paste0("Num_Infected ", infect)
+
+# Table looks like this:
+infect_freq
+
+# How many household has 3 contacts (m=3)
+sum(infect_freq[, 3])
+84 + 60 + 57 + 27 # should be same
+
+# We can calculate the total number of households of each size "contacts"=m by
+# summing down the rows of "infect_freq"
+hhs <- apply(infect_freq, 2, sum) # '2' is column
+hhs
+# or
+colSums(infect_freq)
+# or
+hhs_num2 <- c()
+for (i in 1:10) {
+    hhs_num2[i] <- sum(infect_freq[, i])
+}
+hhs_num2
+
+# Check that hhs and hhs_num2 are identical
+hhs == hhs_num2
+which(hhs != hhs_num2) # None
+
+# We can calculate the total number of households in which "infect"=i people
+# were infected by summing across the columns
+tot_freq <- apply(infect_freq, 1, sum) # '1' is row
+tot_freq
+# or
+rowSums(infect_freq)
+# or
+tot_freq_num2 <- c()
+for (i in 1:nrow(infect_freq)) {
+    tot_freq_num2[i] <- sum(infect_freq[i, ])
+}
+tot_freq_num2
+
+# Check that tot_freq and tot_freq_num2 are identical
+tot_freq == tot_freq_num2
+which(tot_freq != tot_freq_num2) # None
+
+infect_freq_total <- data.frame(rbind(infect_freq, hhs))
+infect_freq_total$freq <- c(tot_freq, sum(hhs))
+```
+
+## Question 1 
+
+*What is the secondary attack rate (SAR) for the households with m = 4 contacts, assuming all infected contacts had symptom onset within the maximum serial interval from the primary case?*
+
+```{r}
+numerator <- sum(infect * infect_freq[, 4]) # number of people infected
+denominator <- sum(infect_freq[, 4] * 4) # number of people susceptible
+p <- numerator / denominator
+print(paste0("The SAR for households with m = 4 is ", p))
+```
+
+## Question 2
+
+What is the expected distribution of secondary infections within households of size m = 4 if there is NO ongoing transmission and p = 0.3?
+
+```{r}
+hist(sum(infect_freq[, 4]) * dbinom(0:4, 4, 0.3))
+```
+
+## Question 3
+
+What are the possible chains that could result in all 4 contacts being infected?  What is the probability of each chain (in terms of p and q) under the Greenwood assumption?
+
+## Question 4
+
+Greenwood presents his expected distribution of secondary measles cases from the chain binomial model with m = 4 in Table III.  What values of p and q did he use to arrive at this expected distribution?  Show how he derived these estimates.
+
+## Question 5
+
+Why might the values of p and q for households with m = 4 be expected to differ from those for households with m = 3 in this study?  Give at least two reasons.
+(HINT: I don’t want to know why the estimates might differ, but rather why the “true” values might differ. Think about what assumptions you are making and why they might be violated.)
+
+## Question 6
+
+What would be the expected distribution of secondary cases for m = 4 under the Reed-Frost assumption given the values of p and q you calculated in question 4?
+
+## Question 7
+
+EXTRA CREDIT:  Which assumption (Greenwood vs Reed-Frost) provides a better fit to the observed distribution of secondary cases when m = 4?  Show the statistical criteria you used to determine this.
