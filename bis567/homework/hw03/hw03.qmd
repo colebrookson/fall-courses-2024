@@ -1,0 +1,41 @@
+---
+title: BIS 567 HW03
+format: 
+  pdf:
+    toc: false
+    number-sections: true
+    colorlinks: true
+authors:
+  - name: Cole Brookson
+---
+
+```{r}
+library(here)
+load(here::here("./bis567/homework/hw03/HW3.RData"))
+```
+
+First, $I_2$ is assumed to be the identity matrix:
+
+```{r}
+
+Omega <- diag(2)
+nu <- 3 # deg freedom
+n <- 100 # since there are 100 observation vectors
+
+# get sample covariance matrix S
+S <- t(y) %*% y
+
+# for simplicity set the post. parameters
+post_scale <- Omega + S
+post_df <- nu + n
+```
+Get the posterior mean of the matrix $\Sigma^{-1}$:
+
+```{r}
+post_mean <- post_df * solve(post_scale)
+```
+if we want the posterior variance of $\Sigma_{ij}^{-1}$ then we can find the diagonal elements  $\Sigma_{ii}^{-1}$ and the off-diagonals $\Sigma_{ij}^{-1}$: 
+
+```{r}
+
+```

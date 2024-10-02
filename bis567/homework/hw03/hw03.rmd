@@ -1,0 +1,15 @@
+---
+title: "Variation in thermal pressures and resource availability drives disease dynamics"
+format: 
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+authors:
+  - name: Cole Brookson
+---
+
+```{r}
+library(here) 
+load(here::here("./bis567/homework/h203/HW3.RData))
+```
