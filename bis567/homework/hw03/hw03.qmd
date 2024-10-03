@@ -1,13 +1,14 @@
 ---
 title: BIS 567 HW03
 format: 
-  pdf:
-    toc: false
-    number-sections: true
-    colorlinks: true
+  pdf:default
 authors:
   - name: Cole Brookson
 ---
+
+## Question 2
+
+### A
 
 ```{r}
 library(here)
@@ -17,7 +18,6 @@ load(here::here("./bis567/homework/hw03/HW3.RData"))
 First, $I_2$ is assumed to be the identity matrix:
 
 ```{r}
-
 Omega <- diag(2)
 nu <- 3 # deg freedom
 n <- 100 # since there are 100 observation vectors
@@ -37,5 +37,35 @@ post_mean <- post_df * solve(post_scale)
 if we want the posterior variance of $\Sigma_{ij}^{-1}$ then we can find the diagonal elements  $\Sigma_{ii}^{-1}$ and the off-diagonals $\Sigma_{ij}^{-1}$: 
 
 ```{r}
+m <- 2
+post_var_matrix <- matrix(0, nrow = m, ncol = m)
 
+# diagonal elements 
+for (i in 1:m) {
+  post_var_matrix[i, i] <- 2 * post_df * solve(post_scale)[i, i]^2
+}
+
+# off-diagonal elements 
+for (i in 1:(m - 1)) {
+  for (j in (i + 1):m) {
+    post_var_matrix[i, j] <- post_df * 
+    (solve(post_scale)[i, i] * 
+    solve(post_scale)[j, j] + solve(post_scale)[i, j]^2)
+    post_var_matrix[j, i] <- post_var_matrix[i, j]  # Symmetry
+  }
+}
+```
+We can now get the mean and variance for each $ij$ combination: 
+
+```{r}
+for(i in 1:2) {
+  for(j in 1:2) {
+    cat(
+      "For i = ", i, " and j = ", j, 
+      ", Posterior mean of Σ^{-1}_{ij} (precision matrix): ", 
+      round(post_mean[i,j], 3),
+      " & \n", "Posterior variance of the Σ^{-1}_{ij}: ",
+      round(post_var_matrix[i,j], 3))
+  }
+}
 ```
