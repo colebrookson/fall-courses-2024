@@ -1,0 +1,10 @@
+---
+title: BIS 567 HW0
+format: 
+  pdf:
+    toc: false
+    number-sections: true
+    colorlinks: true
+authors:
+  - name: Cole Brookson
+---
