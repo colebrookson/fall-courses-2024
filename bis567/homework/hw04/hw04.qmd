@@ -8,3 +8,44 @@ format:
 authors:
   - name: Cole Brookson
 ---
+
+```{r}
+library(here)
+load(here::here("./bis567/homework/hw04/HW4.RData"))
+
+str(y)
+str(x)
+
+ggplot2::ggplot(data = data.frame(x, y)) +
+    ggplot2::geom_point(ggplot2::aes(x = x, y = y),
+        colour = "black", fill = "red",
+        shape = 21
+    ) +
+    ggthemes::theme_base() +
+    ggplot2::labs(x = "X Var", y = "Y var")
+```
+
+The model takes the form of 
+
+\begin{equation}
+Y_i \vert \lambda_i \mathop{\sim}\limits^{\mathrm{iid}} \text{Poisson}(\lambda_i), i = 1,...,n 
+\end{equation}
+where
+\begin{equation}
+\text{ln}(\lambda_i) = \beta_0 + \beta_1x_i + \phi_i
+\end{equation}
+and 
+\begin{equation}
+\phi_i \vert \sigma^2 \mathop{\sim}\limits^{\mathrm{iid}} \text{N}(0, \sigma^2).
+\end{equation}
+
+If we have the priors of 
+
+\begin{equation}
+
+\beta_0 \sim \text{N}(0, 100^2); \\
+ β1 ∼ \text{N}(0, 100^2) \\
+ σ2 ∼ Inverse Gamma (0.01, 0.01
+
+
+\end{equation}
