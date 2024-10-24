@@ -12,16 +12,14 @@ authors:
 ```{r}
 library(here)
 load(here::here("./bis567/homework/hw04/HW4.RData"))
-
-str(y)
-str(x)
+n <- length(y)
 
 ggplot2::ggplot(data = data.frame(x, y)) +
     ggplot2::geom_point(ggplot2::aes(x = x, y = y),
         colour = "black", fill = "red",
         shape = 21
     ) +
-    ggthemes::theme_base() +
+    ggplot2::theme_bw() +
     ggplot2::labs(x = "X Var", y = "Y var")
 ```
 
@@ -44,8 +42,292 @@ If we have the priors of
 \begin{equation}
 
 \beta_0 \sim \text{N}(0, 100^2); \\
- β1 ∼ \text{N}(0, 100^2) \\
- σ2 ∼ Inverse Gamma (0.01, 0.01
-
-
+\beta_1 \sim \text{N}(0, 100^2) \\
+\sigma^2 \sim \text{IG}(0.01, 0.01)
 \end{equation}
+
+```{r}
+# Helper function for log-likelihood of Poisson with log-link
+log_likelihood <- function(y, x, beta0, beta1, phi) {
+    lambda_i <- exp(beta0 + beta1 * x + phi)
+    sum(y * log(lambda_i) - lambda_i)
+}
+
+# Metropolis-Hastings step for beta0 and beta1
+metropolis_beta <- function(y, x, beta0_current, beta1_current, phi_current, beta0_prior_sd, beta1_prior_sd, delta_beta0, delta_beta1) {
+    # Propose new values for beta0 and beta1 with given delta
+    beta0_proposal <- beta0_current + stats::rnorm(1, mean = 0, sd = delta_beta0)
+    beta1_proposal <- beta1_current + stats::rnorm(1, mean = 0, sd = delta_beta1)
+
+    # Log-likelihood for current and proposed values
+    ll_current <- log_likelihood(y, x, beta0_current, beta1_current, phi_current)
+    ll_proposal <- log_likelihood(y, x, beta0_proposal, beta1_proposal, phi_current)
+
+    # Log-priors for current and proposed values
+    log_prior_current <- stats::dnorm(beta0_current, mean = 0, sd = beta0_prior_sd, log = TRUE) +
+        stats::dnorm(beta1_current, mean = 0, sd = beta1_prior_sd, log = TRUE)
+    log_prior_proposal <- stats::dnorm(beta0_proposal, mean = 0, sd = beta0_prior_sd, log = TRUE) +
+        stats::dnorm(beta1_proposal, mean = 0, sd = beta1_prior_sd, log = TRUE)
+
+    # Metropolis-Hastings acceptance ratio
+    log_acceptance_ratio <- (ll_proposal + log_prior_proposal) - (ll_current + log_prior_current)
+
+    if (log(stats::runif(1)) < log_acceptance_ratio) {
+        return(c(beta0_proposal, beta1_proposal, 1)) # accept, return 1 for accepted
+    } else {
+        return(c(beta0_current, beta1_current, 0)) # reject, return 0 for rejected
+    }
+}
+
+# Gibbs step for sigma2
+sample_sigma2 <- function(phi_current, alpha_sigma2, beta_sigma2) {
+    alpha_post <- n / 2 + alpha_sigma2
+    beta_post <- sum(phi_current^2) / 2 + beta_sigma2
+    return(1 / stats::rgamma(1, shape = alpha_post, rate = beta_post))
+}
+
+# Summarize posterior inference for beta0, beta1, and sigma2
+summary_statistics <- function(samples) {
+    mean_value <- mean(samples)
+    sd_value <- sd(samples)
+    ci_95 <- quantile(samples, c(0.025, 0.975))
+    return(c(
+        mean = mean_value, sd = sd_value,
+        ci_95_lower = ci_95[[1]], ci_95_upper = ci_95[[2]]
+    ))
+}
+
+set.seed(123)
+n <- length(y)
+n_iter <- 100000
+# MCMC settings
+beta0_samples <- numeric(n_iter)
+beta1_samples <- numeric(n_iter)
+sigma2_samples <- numeric(n_iter)
+phi_samples <- matrix(0, nrow = n_iter, ncol = n)
+
+# Initial values
+beta0_current <- 0
+beta1_current <- 0
+sigma2_current <- 1
+phi_current <- rep(0, n)
+
+# Priors
+beta0_prior_mean <- 0
+beta0_prior_sd <- 100
+beta1_prior_mean <- 0
+beta1_prior_sd <- 100
+alpha_sigma2 <- 0.01
+beta_sigma2 <- 0.01
+
+# Acceptance counters
+beta_accept_counter <- 0
+phi_accept_counter <- rep(0, n)
+
+# Delta values (proposal variances for the Metropolis-Hastings steps)
+delta_beta0 <- 0.01 # step size for beta0
+delta_beta1 <- 0.01 # step size for beta1
+delta_phi <- 0.5 # step size for each phi_i
+
+# MCMC sampling loop
+for (t in 1:n_iter) {
+    # 1. Sample beta0 and beta1 via Metropolis-Hastings
+    betas <- metropolis_beta(y, x, beta0_current, beta1_current, phi_current, beta0_prior_sd, beta1_prior_sd, delta_beta0, delta_beta1)
+    beta0_current <- betas[1]
+    beta1_current <- betas[2]
+    beta_accept_counter <- beta_accept_counter + betas[3] # track acceptance
+
+    # 2. Sample phi_i using Metropolis-Hastings
+    for (i in 1:n) {
+        phi_proposal <- phi_current[i] + stats::rnorm(1, mean = 0, sd = delta_phi) # Proposal variance for phi
+        lambda_current <- exp(beta0_current + beta1_current * x[i] + phi_current[i])
+        lambda_proposal <- exp(beta0_current + beta1_current * x[i] + phi_proposal)
+
+        log_accept_ratio <- (y[i] * log(lambda_proposal) - lambda_proposal) -
+            (y[i] * log(lambda_current) - lambda_current)
+        log_accept_ratio <- log_accept_ratio +
+            stats::dnorm(phi_proposal, mean = 0, sd = sqrt(sigma2_current), log = TRUE) -
+            stats::dnorm(phi_current[i], mean = 0, sd = sqrt(sigma2_current), log = TRUE)
+
+        if (log(stats::runif(1)) < log_accept_ratio) {
+            phi_current[i] <- phi_proposal
+            phi_accept_counter[i] <- phi_accept_counter[i] + 1 # track acceptance
+        }
+    }
+
+    # 3. Sample sigma2 from its full conditional (Inverse-Gamma)
+    sigma2_current <- sample_sigma2(phi_current, alpha_sigma2, beta_sigma2)
+
+    # Store the samples
+    beta0_samples[t] <- beta0_current
+    beta1_samples[t] <- beta1_current
+    sigma2_samples[t] <- sigma2_current
+    phi_samples[t, ] <- phi_current
+
+    # Print acceptance rates every 100 iterations
+    if (t %% 10000 == 0) {
+        beta_accept_rate <- beta_accept_counter / i
+        phi_accept_rate <- mean(phi_accept_counter) / i
+
+        cat("Iteration:", t, "\n")
+        cat("Acceptance rate for beta0 and beta1:", beta_accept_rate, "\n")
+        cat("Acceptance rate for phi's:", phi_accept_rate, "\n")
+
+        # Reset counters
+        beta_accept_counter <- 0
+        phi_accept_counter <- rep(0, n)
+    }
+}
+
+beta0_summary <- summary_statistics(beta0_samples)
+beta1_summary <- summary_statistics(beta1_samples)
+sigma2_summary <- summary_statistics(sigma2_samples)
+
+# Create summary table (excluding ln(lambda_i))
+summary_table <- data.frame(
+    Parameter = c("beta0", "beta1", "sigma2"),
+    Posterior_Mean = c(beta0_summary["mean"], beta1_summary["mean"], sigma2_summary["mean"]),
+    Posterior_SD = c(beta0_summary["sd"], beta1_summary["sd"], sigma2_summary["sd"]),
+    `95%_Credible_Interval_Lower` = c(beta0_summary["ci_95_lower"], beta1_summary["ci_95_lower"], sigma2_summary["ci_95_lower"]),
+    `95%_Credible_Interval_Upper` = c(beta0_summary["ci_95_upper"], beta1_summary["ci_95_upper"], sigma2_summary["ci_95_upper"])
+)
+
+print(summary_table)
+
+# Trace plot for beta0
+plot(beta0_samples,
+    type = "l", col = "blue", main = "Trace Plot for beta0",
+    xlab = "Iteration", ylab = expression(beta)
+)
+
+# Trace plot for beta1
+plot(beta1_samples,
+    type = "l", col = "red", main = "Trace Plot for beta1",
+    xlab = "Iteration", ylab = expression(beta)
+)
+
+# Trace plot for sigma2
+plot(sigma2_samples,
+    type = "l", col = "green", main = expression("Trace Plot for " ~ sigma^2),
+    xlab = "Iteration", ylab = expression(sigma^2)
+)
+
+```
+
+```{r}
+# Load required packages
+library(rstan)
+
+# Prepare data list for Stan
+stan_data <- list(
+    n = n,
+    x = x,
+    y = y
+)
+
+# Define the Stan model as a string
+stan_model_code <- "
+data {
+  int<lower=0> n;            // number of observations
+  vector[n] x;              // predictor variable
+  int<lower=0> y[n];        // response variable (counts)
+}
+
+parameters {
+  real beta0;               // intercept
+  real beta1;               // slope
+  real<lower=0> sigma2;     // variance of phi
+  vector[n] phi;            // random effects
+}
+
+model {
+  // Priors
+  beta0 ~ normal(0, 100);
+  beta1 ~ normal(0, 100);
+  sigma2 ~ inv_gamma(0.01, 0.01);
+
+  // Likelihood
+  for (i in 1:n) {
+    // The Poisson model with random effects
+    y[i] ~ poisson(exp(beta0 + beta1 * x[i] + phi[i]));
+    phi[i] ~ normal(0, sqrt(sigma2));  // Random effects prior
+  }
+}
+"
+
+# Compile the Stan model
+stan_model <- stan_model(model_code = stan_model_code)
+
+# Fit the model using Stan
+fit <- sampling(stan_model,
+    data = stan_data,
+    iter = 10000, chains = 4
+)
+
+# Print the results
+print(fit)
+
+# Extract posterior samples
+posterior_samples <- extract(fit)
+
+# Summary of the results
+beta0_samples_stan <- posterior_samples$beta0
+beta1_samples_stan <- posterior_samples$beta1
+sigma2_samples_stan <- posterior_samples$sigma2
+
+beta0_summary_stan <- summary_statistics(beta0_samples_stan)
+beta1_summary_stan <- summary_statistics(beta1_samples_stan)
+sigma2_summary_stan <- summary_statistics(sigma2_samples_stan)
+
+# Create summary table
+summary_table_stan <- data.frame(
+    Parameter = c("beta0", "beta1", "sigma2"),
+    Posterior_Mean = c(
+        beta0_summary_stan["mean"],
+        beta1_summary_stan["mean"],
+        sigma2_summary_stan["mean"]
+    ),
+    Posterior_SD = c(
+        beta0_summary_stan["sd"],
+        beta1_summary_stan["sd"],
+        sigma2_summary_stan["sd"]
+    ),
+    `95%_Credible_Interval_Lower` = c(
+        beta0_summary_stan["ci_95_lower"],
+        beta1_summary_stan["ci_95_lower"],
+        sigma2_summary_stan["ci_95_lower"]
+    ),
+    `95%_Credible_Interval_Upper` = c(
+        beta0_summary_stan["ci_95_upper"],
+        beta1_summary_stan["ci_95_upper"],
+        sigma2_summary_stan["ci_95_upper"]
+    )
+)
+
+print(summary_table_stan)
+
+# Visualization
+par(mfrow = c(3, 1)) # Set up the plotting area
+
+# Plot beta0
+hist(beta0_samples,
+    breaks = 30, probability = TRUE,
+    main = "Posterior Distribution of Beta0 (Stan)", xlab = "Beta0"
+)
+lines(density(beta0_samples), col = "blue")
+
+# Plot beta1
+hist(beta1_samples,
+    breaks = 30, probability = TRUE,
+    main = "Posterior Distribution of Beta1 (Stan)", xlab = "Beta1"
+)
+lines(density(beta1_samples), col = "blue")
+
+# Plot sigma2
+hist(sigma2_samples,
+    breaks = 30, probability = TRUE,
+    main = "Posterior Distribution of Sigma2 (Stan)", xlab = "Sigma2"
+)
+lines(density(sigma2_samples), col = "blue")
+
+```
