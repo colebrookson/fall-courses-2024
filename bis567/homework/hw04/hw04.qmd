@@ -330,4 +330,6 @@ hist(sigma2_samples,
 )
 lines(density(sigma2_samples), col = "blue")
 
+
+
 ```
