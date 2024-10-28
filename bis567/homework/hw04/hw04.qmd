@@ -330,6 +330,115 @@ hist(sigma2_samples,
 )
 lines(density(sigma2_samples), col = "blue")
 
+```
+
+```{r}
+library(MASS) # For using multivariate normal functions if needed in extensions
+n <- length(y)
+
+# mcmc configuration
+mcmc_samples <- 5000 # total number of MCMC samples/iterations
+# proposal variances
+delta_beta0 <- 0.01
+delta_beta1 <- 0.01
+
+# define the prior distribution parameters
+prior_beta_sd <- 100
+prior_sigma_shape <- 0.01
+prior_sigma_rate <- 0.01
+
+# Parameter initialization (storing values for each iteration)
+beta0 <- numeric(mcmc_samples) # Initialize storage for beta0 samples
+beta1 <- numeric(mcmc_samples) # Initialize storage for beta1 samples
+sigma2 <- numeric(mcmc_samples) # Initialize storage for sigma2 samples
+phi <- matrix(0, nrow = mcmc_samples, ncol = n) # Initialize storage for phi samples, one column per observation
+
+# Set initial values for parameters in the chain
+beta0[1] <- 0 # Initial value for beta0
+beta1[1] <- 0 # Initial value for beta1
+sigma2[1] <- 1 # Initial value for sigma2
+phi[1, ] <- rnorm(n, 0, sqrt(sigma2[1])) # Initial values for phi, drawn from N(0, sigma^2)
+
+# Counters to track acceptance rates for parameters
+accept_beta0 <- 0 # Tracks acceptance for beta0
+accept_beta1 <- 0 # Tracks acceptance for beta1
+accept_phi <- rep(0, n) # Tracks acceptance for each phi_i
+
+# MCMC Sampling Loop
+for (i in 2:mcmc_samples) { # Loop through each MCMC iteration, starting at 2 (first iteration already set)
+
+    # 1. Update phi for each observation i using Metropolis-Hastings
+    for (j in 1:n) {
+        phi_proposal <- rnorm(1, phi[i - 1, j], sqrt(delta_phi)) # Propose new phi[j] using normal proposal distribution
+        log_acceptance_ratio <- y[j] * phi_proposal - exp(beta0[i - 1] + beta1[i - 1] * x[j] + phi_proposal) -
+            (phi_proposal^2) / (2 * sigma2[i - 1]) -
+            (y[j] * phi[i - 1, j] - exp(beta0[i - 1] + beta1[i - 1] * x[j] + phi[i - 1, j]) -
+                (phi[i - 1, j]^2) / (2 * sigma2[i - 1])) # Compute log acceptance ratio
+
+        # Accept or reject based on acceptance ratio
+        if (log(runif(1)) < log_acceptance_ratio) { # If proposal is accepted
+            phi[i, j] <- phi_proposal
+            accept_phi[j] <- accept_phi[j] + 1 # Increment acceptance counter for phi_j
+        } else { # If proposal is rejected
+            phi[i, j] <- phi[i - 1, j] # Retain previous phi_j
+        }
+    }
+
+    # 2. Update beta0 using Metropolis-Hastings
+    beta0_proposal <- rnorm(1, beta0[i - 1], sqrt(delta_beta0)) # Propose a new beta0 using normal proposal
+    log_acceptance_ratio <- sum(dpois(y, lambda = exp(beta0_proposal + beta1[i - 1] * x + phi[i, ]), log = TRUE)) +
+        dnorm(beta0_proposal, 0, prior_beta_sd, log = TRUE) -
+        sum(dpois(y, lambda = exp(beta0[i - 1] + beta1[i - 1] * x + phi[i, ]), log = TRUE)) -
+        dnorm(beta0[i - 1], 0, prior_beta_sd, log = TRUE) # Compute log acceptance ratio
+
+    # Accept or reject beta0 proposal
+    if (log(runif(1)) < log_acceptance_ratio) { # If accepted
+        beta0[i] <- beta0_proposal
+        accept_beta0 <- accept_beta0 + 1 # Increment acceptance counter for beta0
+    } else { # If rejected
+        beta0[i] <- beta0[i - 1] # Retain previous beta0 value
+    }
+
+    # 3. Update beta1 using Metropolis-Hastings
+    beta1_proposal <- rnorm(1, beta1[i - 1], sqrt(delta_beta1)) # Propose a new beta1 using normal proposal
+    log_acceptance_ratio <- sum(dpois(y, lambda = exp(beta0[i] + beta1_proposal * x + phi[i, ]), log = TRUE)) +
+        dnorm(beta1_proposal, 0, prior_beta_sd, log = TRUE) -
+        sum(dpois(y, lambda = exp(beta0[i] + beta1[i - 1] * x + phi[i, ]), log = TRUE)) -
+        dnorm(beta1[i - 1], 0, prior_beta_sd, log = TRUE) # Compute log acceptance ratio
+
+    # Accept or reject beta1 proposal
+    if (log(runif(1)) < log_acceptance_ratio) { # If accepted
+        beta1[i] <- beta1_proposal
+        accept_beta1 <- accept_beta1 + 1 # Increment acceptance counter for beta1
+    } else { # If rejected
+        beta1[i] <- beta1[i - 1] # Retain previous beta1 value
+    }
+
+    # 4. Update sigma2 from its full conditional distribution (Inverse-Gamma)
+    shape_post <- prior_sigma_shape + n / 2 # Posterior shape for sigma2
+    rate_post <- prior_sigma_rate + sum(phi[i, ]^2) / 2 # Posterior rate for sigma2
+    sigma2[i] <- 1 / rgamma(1, shape = shape_post, rate = rate_post) # Sample sigma2 from Inverse-Gamma
+
+    # Print acceptance rates every 1000 iterations
+    if (i %% 1000 == 0) {
+        cat("Iteration:", i, "\n")
+        cat("Acceptance rate for beta0:", accept_beta0 / i, "\n") # Acceptance rate for beta0
+        cat("Acceptance rate for beta1:", accept_beta1 / i, "\n") # Acceptance rate for beta1
+        cat("Average acceptance rate for phi:", mean(accept_phi / i), "\n") # Average acceptance rate for phi
+    }
+}
+
+# Summarize posterior results (excluding phi estimates)
+summary_table <- data.frame(
+    Parameter = c("beta0", "beta1", "sigma2"),
+    Mean = c(mean(beta0), mean(beta1), mean(sigma2)),
+    SD = c(sd(beta0), sd(beta1), sd(sigma2)),
+    `2.5%` = c(quantile(beta0, 0.025), quantile(beta1, 0.025), quantile(sigma2, 0.025)),
+    `97.5%` = c(quantile(beta0, 0.975), quantile(beta1, 0.975), quantile(sigma2, 0.975))
+)
+
+# Display posterior summary
+print(summary_table)
 
 
 ```
