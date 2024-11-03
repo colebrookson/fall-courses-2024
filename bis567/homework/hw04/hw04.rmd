@@ -583,3 +583,7 @@ And on method b, the runtime on the same number of iterations was:
 ```{r}
 print(end_b - start_b)
 ```
+
+Method 2 was slightly quicker, and I think was made slightly easier by not having to worry about the log-scale on $\lambda$, making it more appealing. 
+
+Overall, the esimates given by the two methods however did differ on the order of 2 decimal places, which, depending on the parameters, may not be insignificant. Further thought on which approach better captures the true value would be needed to decide if the speed of option 2 is worth using it. 
