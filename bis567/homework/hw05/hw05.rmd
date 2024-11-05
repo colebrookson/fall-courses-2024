@@ -1,0 +1,20 @@
+---
+title: BIS 567 HW05
+format: 
+  pdf:
+    toc: false
+    number-sections: true
+    colorlinks: true
+authors:
+  - name: Cole Brookson
+---
+
+```{r}
+library(MASS)
+library(pgdraw)
+
+load(here::here("./bis567/homework/hw05HW5.RData"))
+# Assume `y` and `x` are the variable names in the loaded data
+n <- length(y)
+p <- ncol(x)
+```
