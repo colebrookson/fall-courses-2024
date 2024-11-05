@@ -17,4 +17,143 @@ load(here::here("./bis567/homework/hw05HW5.RData"))
 # Assume `y` and `x` are the variable names in the loaded data
 n <- length(y)
 p <- ncol(x)
+n_iter <- 10000 # num of iterations
+burn_in <- 2000 # burn in
+thin_interval <- 10 # thinning interval
+
+# function to calculate the log posterior
+log_posterior <- function(beta, y, x) {
+    eta <- x %*% beta
+    log_lik <- sum(y * eta - log(1 + exp(eta)))
+    log_prior <- -0.5 * t(beta) %*% beta / 10000
+    return(log_lik + log_prior)
+}
+
+beta_init <- rep(0, p)
+proposal_sd <- 0.1
+n_iter <- 10000
+beta_samples <- matrix(0, nrow = n_iter, ncol = p)
+beta_samples[1, ] <- beta_init
+
+set.seed(123)
+accept_count <- 0 # init the acceptance counter
+for (i in 2:n_iter) {
+    current_beta <- beta_samples[i - 1, ]
+
+    # Propose a new beta
+    proposed_beta <- current_beta + rnorm(p, mean = 0, sd = proposal_sd)
+
+    # Calculate log-posterior for current and proposed values
+    log_posterior_current <- log_posterior(current_beta, y, x)
+    log_posterior_proposed <- log_posterior(proposed_beta, y, x)
+
+    # Acceptance probability
+    accept_prob <- exp(log_posterior_proposed - log_posterior_current)
+
+    # Accept or reject
+    if (runif(1) < accept_prob) {
+        beta_samples[i, ] <- proposed_beta
+        accept_count <- accept_count + 1 # Increment if accepted
+    } else {
+        beta_samples[i, ] <- current_beta
+    }
+
+    # Print acceptance rate every 1000 iterations
+    if (i %% 1000 == 0) {
+        acceptance_rate <- accept_count / i
+        cat("Iteration", i, "Acceptance Rate:", round(acceptance_rate, 4), "\n")
+    }
+}
+
+post_burn_samples <- beta_samples[(burn_in + 1):n_iter, ]
+
+thinned_samples <- post_burn_samples[seq(1, nrow(post_burn_samples), by = thin_interval), ]
+
+summary_stats_thinned <- apply(thinned_samples, 2, function(x) {
+    c(Mean = mean(x), SD = sd(x), `2.5%` = quantile(x, 0.025), `97.5%` = quantile(x, 0.975))
+})
+print(summary_stats_thinned)
+
+# Trace plots for thinned samples
+par(mfrow = c(ceiling(p / 2), 2))
+for (j in 1:p) {
+    plot(thinned_samples[, j], type = "l", main = paste("Trace plot for β", j, "(thinned)"), ylab = expression(beta[j]), xlab = "Iteration (thinned)")
+}
+
+# Autocorrelation plots for thinned samples
+par(mfrow = c(ceiling(p / 2), 2))
+for (j in 1:p) {
+    acf(thinned_samples[, j], main = paste("Autocorrelation for β", j, "(thinned)"))
+}
+
+
+
+# traceeeee
+par(mfrow = c(ceiling(p / 2), 2))
+for (j in 1:p) {
+    plot(beta_samples[, j], type = "l", main = paste("Trace plot for β", j), ylab = expression(beta[j]), xlab = "Iteration")
+}
+
+summary_stats <- apply(beta_samples[(n_iter / 2):n_iter, ], 2, function(x) {
+    c(Mean = mean(x), SD = sd(x), `2.5%` = quantile(x, 0.025), `97.5%` = quantile(x, 0.975))
+})
+print(summary_stats)
+par(mfrow = c(ceiling(p / 2), 2)) # Adjust layout for multiple parameters
+for (j in 1:p) {
+    acf(beta_samples[(n_iter / 2):n_iter, j], main = paste("Autocorrelation for β", j))
+}
+```
+
+```{r}
+n <- length(y)
+p <- ncol(x)
+
+n_iter <- 10000 # num of iterations
+burn_in <- 2000 # burn in
+thin_interval <- 10 # thinning interval
+
+# init the values and objects to store things in
+beta <- rep(0, p)
+omega <- rep(1, n)
+beta_samples <- matrix(0, nrow = (n_iter - burn_in) / thin_interval, ncol = p)
+
+# Initialize
+beta <- rep(0, p)
+n_iter <- 10000
+beta_samples <- matrix(0, nrow = n_iter, ncol = p)
+
+for (t in 1:n_iter) {
+    # Sample omega given beta
+    omega <- sapply(1:n, function(i) pgdraw(1, x[i, ] %*% beta))
+
+    # Sample beta given omega and y
+    Sigma_beta <- solve(t(x) %*% diag(omega) %*% x + diag(1 / 10000, p))
+    mu_beta <- Sigma_beta %*% t(x) %*% (y - 0.5)
+    beta <- rmvnorm(1, mean = mu_beta, sigma = Sigma_beta)
+
+    # Store samples
+    beta_samples[t, ] <- beta
+}
+
+# Apply burn-in, thinning, and compute posterior summaries as before
+burn_in <- 2000
+post_burn_samples <- beta_samples[(burn_in + 1):n_iter, ]
+thin_interval <- 10 # Keep every 10th sample
+thinned_samples <- post_burn_samples[seq(1, nrow(post_burn_samples), by = thin_interval), ]
+summary_stats_thinned <- apply(thinned_samples, 2, function(x) {
+    c(Mean = mean(x), SD = sd(x), `2.5%` = quantile(x, 0.025), `97.5%` = quantile(x, 0.975))
+})
+print(summary_stats_thinned)
+
+# Trace plots for thinned samples
+par(mfrow = c(ceiling(p / 2), 2))
+for (j in 1:p) {
+    plot(thinned_samples[, j], type = "l", main = paste("Trace plot for β", j, "(thinned)"), ylab = expression(beta[j]), xlab = "Iteration (thinned)")
+}
+
+# Autocorrelation plots for thinned samples
+par(mfrow = c(ceiling(p / 2), 2))
+for (j in 1:p) {
+    acf(thinned_samples[, j], main = paste("Autocorrelation for β", j, "(thinned)"))
+}
 ```
