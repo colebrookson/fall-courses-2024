@@ -9,12 +9,18 @@ authors:
   - name: Cole Brookson
 ---
 
-```{r}
-library(MASS)
-library(pgdraw)
+## Question 1
 
+### Part (A)
+
+```{r}
+library(knitr)
+library(kableExtra)
+library(magrittr)
 load(here::here("./bis567/homework/hw05HW5.RData"))
-# Assume `y` and `x` are the variable names in the loaded data
+set.seed(123)
+
+# values that we need for matrix size etc
 n <- length(y)
 p <- ncol(x)
 n_iter <- 100000 # num of iterations
@@ -29,12 +35,12 @@ log_posterior <- function(beta, y, x) {
     return(log_lik + log_prior)
 }
 
+# initialize the important bits
 beta_init <- rep(0, p)
-proposal_sd <- 0.2
+proposal_sd <- 0.2 # 0.2 gets about 50% acceptance
 beta_samples <- matrix(0, nrow = n_iter, ncol = p)
 beta_samples[1, ] <- beta_init
 
-set.seed(123)
 accept_count <- 0 # init the acceptance counter
 for (i in 2:n_iter) {
     current_beta <- beta_samples[i - 1, ]
@@ -64,16 +70,55 @@ for (i in 2:n_iter) {
     }
 }
 
+# now discard the burn-in
 post_burn_samples <- beta_samples[(burn_in + 1):n_iter, ]
-
+# thin the samples!
 thinned_samples <- post_burn_samples[seq(1, nrow(post_burn_samples), by = thin_interval), ]
 
+# provide the inference on ONLY the thinned parts
 summary_stats_thinned <- apply(thinned_samples, 2, function(x) {
     c(Mean = mean(x), SD = sd(x), `2.5%` = quantile(x, 0.025), `97.5%` = quantile(x, 0.975))
 })
-print(summary_stats_thinned)
 
-# Trace plots for thinned samples
+# Convert to data frame for easier manipulation
+summary_stats_df <- as.data.frame(t(summary_stats_thinned))
+summary_stats_df$parameter <- c("beta1", "beta2")
+summary_stats_df <- summary_stats_df %>%
+    dplyr::select(parameter, names(.)[1:4])
+
+# Create a nicely formatted table using kable and kableExtra
+summary_table <- summary_stats_df %>%
+    knitr::kable("html",
+        caption = "Summary Statistics for Thinned Samples for Question 1a)",
+        col.names = c("Parameter", "Estimate", "SD", "2.5%", "97.5%")
+    ) %>%
+    kableExtra::kable_styling(
+        full_width = FALSE,
+        position = "left", bootstrap_options = c("striped", "hover", "condensed")
+    )
+print(summary_table)
+
+# diagnostics!
+geweke_results <- coda::geweke.diag(thinned_samples)
+ess_results <- coda::effectiveSize(thinned_samples)
+
+diags_df <- data.frame(
+    parameter = c("beta1", "beta2"),
+    ESS = unname(ess_results),
+    geweke = unname(geweke_results$z)
+)
+diags_table <- diags_df %>%
+    knitr::kable("html",
+        caption = "Convergence Diagnostics for Thinned Samples for Question 1a)",
+        col.names = c("Parameter", "Effective Sample Size", "Geweke Diagnostic")
+    ) %>%
+    kableExtra::kable_styling(
+        full_width = FALSE,
+        position = "left", bootstrap_options = c("striped", "hover", "condensed")
+    )
+```
+```{r}
+# trace plots for thinned samples
 par(mfrow = c(ceiling(p / 2), 2))
 for (j in 1:p) {
     plot(thinned_samples[, j], type = "l", main = paste("Trace plot for β", j, "(thinned)"), ylab = expression(beta[j]), xlab = "Iteration (thinned)")
@@ -123,28 +168,52 @@ for (t in 1:n_iter) {
     beta_samples[t, ] <- beta
 }
 
-# Remove burn-in samples
+# discard burnin
 post_burn_samples <- beta_samples[(burn_in + 1):n_iter, ]
 
-# Thin samples (e.g., every 10th sample)
+# thin them samples
 thin_interval <- 10
 thinned_samples <- post_burn_samples[seq(1, nrow(post_burn_samples), thin_interval), ]
-
-# Geweke diagnostic
-geweke_results <- coda::geweke.diag(thinned_samples)
-print("Geweke Diagnostic Z-scores:")
-print(geweke_results)
-
-# Effective sample size
-ess_results <- coda::effectiveSize(thinned_samples)
-print("Effective Sample Size (ESS):")
-print(ess_results)
-
-# Summary statistics for each beta parameter
-summary_stats <- apply(thinned_samples, 2, function(x) {
+summary_stats_thinned <- apply(thinned_samples, 2, function(x) {
     c(Mean = mean(x), SD = sd(x), `2.5%` = quantile(x, 0.025), `97.5%` = quantile(x, 0.975))
 })
-print(summary_stats)
+
+summary_stats_df <- as.data.frame(t(summary_stats_thinned))
+summary_stats_df$parameter <- c("beta1", "beta2")
+summary_stats_df <- summary_stats_df %>%
+    dplyr::select(parameter, names(.)[1:4])
+
+# nice table
+summary_table <- summary_stats_df %>%
+    knitr::kable("html",
+        caption = "Summary Statistics for Thinned Samples for Question 1b-iii)",
+        col.names = c("Parameter", "Estimate", "SD", "2.5%", "97.5%")
+    ) %>%
+    kableExtra::kable_styling(
+        full_width = FALSE,
+        position = "left", bootstrap_options = c("striped", "hover", "condensed")
+    )
+print(summary_table)
+
+# diagnostics!
+geweke_results <- coda::geweke.diag(thinned_samples)
+ess_results <- coda::effectiveSize(thinned_samples)
+
+diags_df <- data.frame(
+    parameter = c("beta1", "beta2"),
+    ESS = unname(ess_results),
+    geweke = unname(geweke_results$z)
+)
+diags_table <- diags_df %>%
+    knitr::kable("html",
+        caption = "Convergence Diagnostics for Thinned Samples for
+        Question 11b-iii)",
+        col.names = c("Parameter", "Effective Sample Size", "Geweke Diagnostic")
+    ) %>%
+    kableExtra::kable_styling(
+        full_width = FALSE,
+        position = "left", bootstrap_options = c("striped", "hover", "condensed")
+    )
 
 # Trace plots
 par(mfrow = c(ceiling(p / 2), 2))
@@ -160,15 +229,6 @@ for (j in 1:p) {
 ```
 
 ```{r}
-# Load necessary packages
-library(pgdraw)
-library(mvtnorm)
-library(coda)
-library(microbenchmark)
-
-# Load your data
-load("HW5.RData")
-
 # Function for Metropolis Sampling (Part A)
 metropolis_sampling <- function(y, x, n_iter, burn_in, thin_interval) {
     n <- length(y)
@@ -209,12 +269,6 @@ metropolis_sampling <- function(y, x, n_iter, burn_in, thin_interval) {
             accept_count <- accept_count + 1 # Increment if accepted
         } else {
             beta_samples[i, ] <- current_beta
-        }
-
-        # Print acceptance rate every 1000 iterations
-        if (i %% 1000 == 0) {
-            acceptance_rate <- accept_count / i
-            cat("Iteration", i, "Acceptance Rate:", round(acceptance_rate, 4), "\n")
         }
     }
 
