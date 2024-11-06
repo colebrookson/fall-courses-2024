@@ -117,9 +117,8 @@ diags_table <- diags_df_metrop %>%
 ```
 ```{r}
 # plotting
-
-df_metropolis <- dplyr::as_tibble(thinned_samples) %>%
-    dplyr::rename(beta1 = V1, beta2 = V2) %>%
+df_metropolis <- dplyr::as_tibble(data.frame(thinned_samples)) %>%
+    dplyr::rename(beta1 = X1, beta2 = X2) %>%
     dplyr::mutate(
         iteration = seq(1, nrow(post_burn_samples), by = thin_interval),
         method = "Metropolis"
@@ -194,6 +193,7 @@ burn_in <- 2000 # burn in
 thin_interval <- 10 # thinning interval
 
 # init the values and objects to store things in
+beta <- rep(0, p)
 omega <- rep(1, n)
 beta_samples <- matrix(0, nrow = n_iter, ncol = p)
 
@@ -266,8 +266,8 @@ diags_table <- diags_df_gibbs %>%
 ```
 
 ```{r}
-df_gibbs <- dplyr::as_tibble(thinned_samples) %>%
-    dplyr::rename(beta1 = V1, beta2 = V2) %>%
+df_gibbs <- dplyr::as_tibble(data.frame(thinned_samples)) %>%
+    dplyr::rename(beta1 = X1, beta2 = X2) %>%
     dplyr::mutate(
         iteration = seq(1, nrow(post_burn_samples), by = thin_interval),
         method = "Gibbs"
@@ -372,6 +372,7 @@ gibbs_sampling <- function(y, x) {
     thin_interval <- 10 # thinning interval
 
     # init the values and objects to store things in
+    beta <- rep(0, p)
     omega <- rep(1, n)
     beta_samples <- matrix(0, nrow = n_iter, ncol = p)
 
@@ -398,7 +399,7 @@ gibbs_sampling <- function(y, x) {
 timing_results <- microbenchmark::microbenchmark(
     Metropolis_Hastings = metropolis_sampling(y, x),
     Gibbs_Sampling = gibbs_sampling(y, x),
-    times = 10
+    times = 1
 )
 
 time_metropolis <- median(timing_results$time[timing_results$expr == "Metropolis_Hastings"]) / 1e9
