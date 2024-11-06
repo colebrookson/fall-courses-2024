@@ -85,17 +85,13 @@ summary_stats_df$parameter <- c("beta1", "beta2")
 summary_stats_df_metrop <- summary_stats_df %>%
     dplyr::select(parameter, names(.)[1:4])
 
-summary_table <- summary_stats_df_metrop %>%
-    knitr::kable("html",
-        caption = "Summary Statistics for Thinned Samples for Question 1a)",
-        col.names = c("Parameter", "Estimate", "SD", "2.5%", "97.5%")
-    ) %>%
-    kableExtra::kable_styling(
-        full_width = FALSE,
-        position = "left", bootstrap_options = c("striped", "hover", "condensed")
-    )
-print(summary_table)
-
+knitr::kable(summary_stats_df_metrop,
+    caption = "Summary Statistics for Thinned Samples for Question 1a)",
+    col.names = c("Parameter", "Estimate", "SD", "2.5%", "97.5%")
+) %>%
+    kableExtra::kable_classic()
+```
+```{r}
 # diagnostics!
 geweke_results <- coda::geweke.diag(thinned_samples)
 ess_results <- coda::effectiveSize(thinned_samples)
@@ -105,15 +101,11 @@ diags_df_metrop <- data.frame(
     ESS = unname(ess_results),
     geweke = unname(geweke_results$z)
 )
-diags_table <- diags_df_metrop %>%
-    knitr::kable("html",
-        caption = "Convergence Diagnostics for Thinned Samples for Question 1a)",
-        col.names = c("Parameter", "Effective Sample Size", "Geweke Diagnostic")
-    ) %>%
-    kableExtra::kable_styling(
-        full_width = FALSE,
-        position = "left", bootstrap_options = c("striped", "hover", "condensed")
-    )
+knitr::kable(diags_df_metrop,
+    caption = "Convergence Diagnostics for Thinned Samples for Question 1a)",
+    col.names = c("Parameter", "Effective Sample Size", "Geweke Diagnostic")
+) %>%
+    kableExtra::kable_classic()
 ```
 ```{r}
 # plotting
@@ -169,6 +161,7 @@ plot_metropolis <- patchwork::wrap_plots(
     ncol = 1
 ) +
     patchwork::plot_layout(ncol = 1)
+plot_metropolis
 ```
 
 ### Part (B)
@@ -233,17 +226,13 @@ summary_stats_df_gibbs <- summary_stats_df %>%
     dplyr::select(parameter, names(.)[1:4])
 
 # nice table
-summary_table <- summary_stats_df_gibbs %>%
-    knitr::kable("html",
-        caption = "Summary Statistics for Thinned Samples for Question 1b-iii)",
-        col.names = c("Parameter", "Estimate", "SD", "2.5%", "97.5%")
-    ) %>%
-    kableExtra::kable_styling(
-        full_width = FALSE,
-        position = "left", bootstrap_options = c("striped", "hover", "condensed")
-    )
-print(summary_table)
-
+knitr::kable(summary_stats_df_gibbs,
+    caption = "Summary Statistics for Thinned Samples for Question 1b-iii)",
+    col.names = c("Parameter", "Estimate", "SD", "2.5%", "97.5%")
+) %>%
+    kableExtra::kable_classic()
+```
+```{r}
 # diagnostics!
 geweke_results <- coda::geweke.diag(thinned_samples)
 ess_results <- coda::effectiveSize(thinned_samples)
@@ -253,16 +242,12 @@ diags_df_gibbs <- data.frame(
     ESS = unname(ess_results),
     geweke = unname(geweke_results$z)
 )
-diags_table <- diags_df_gibbs %>%
-    knitr::kable("html",
-        caption = "Convergence Diagnostics for Thinned Samples for
+knitr::kable(diags_df_gibbs,
+    caption = "Convergence Diagnostics for Thinned Samples for
         Question 11b-iii)",
-        col.names = c("Parameter", "Effective Sample Size", "Geweke Diagnostic")
-    ) %>%
-    kableExtra::kable_styling(
-        full_width = FALSE,
-        position = "left", bootstrap_options = c("striped", "hover", "condensed")
-    )
+    col.names = c("Parameter", "Effective Sample Size", "Geweke Diagnostic")
+) %>%
+    kableExtra::kable_classic()
 ```
 
 ```{r}
@@ -324,6 +309,7 @@ plot_gibbs <- patchwork::wrap_plots(
     ncol = 1
 ) +
     patchwork::plot_layout(ncol = 1)
+plot_gibbs
 ```
 
 ## Question 1 
@@ -343,20 +329,19 @@ metropolis_sampling <- function(y, x) {
     for (i in 2:n_iter) {
         current_beta <- beta_samples[i - 1, ]
 
-        # Propose a new beta
+        # new beta
         proposed_beta <- current_beta + rnorm(p, mean = 0, sd = proposal_sd)
 
-        # Calculate log-posterior for current and proposed values
+        # this function is pre-written
         log_posterior_current <- log_posterior(current_beta, y, x)
         log_posterior_proposed <- log_posterior(proposed_beta, y, x)
 
-        # Acceptance probability
+        # acceptance prob
         accept_prob <- exp(log_posterior_proposed - log_posterior_current)
 
-        # Accept or reject
+        # reject or
         if (runif(1) < accept_prob) {
             beta_samples[i, ] <- proposed_beta
-            accept_count <- accept_count + 1 # Increment if accepted
         } else {
             beta_samples[i, ] <- current_beta
         }
@@ -383,7 +368,7 @@ gibbs_sampling <- function(y, x) {
             psi_i <- x[i, ] %*% beta
 
             # samp omega_i | beta using Polya-Gamma(1, psi_i)
-            omega[i] <- pgdraw(1, psi_i)
+            omega[i] <- pgdraw::pgdraw(1, psi_i)
         }
 
         # posterior covariance ?
@@ -392,7 +377,10 @@ gibbs_sampling <- function(y, x) {
         mu_beta <- Sigma_beta %*% t(x) %*% (y - 0.5)
 
         # draw beta
-        beta <- as.vector(rmvnorm(1, mean = mu_beta, sigma = Sigma_beta))
+        beta <- as.vector(mvtnorm::rmvnorm(
+            1,
+            mean = mu_beta, sigma = Sigma_beta
+        ))
         beta_samples[t, ] <- beta
     }
 }
@@ -402,8 +390,12 @@ timing_results <- microbenchmark::microbenchmark(
     times = 1
 )
 
-time_metropolis <- median(timing_results$time[timing_results$expr == "Metropolis_Hastings"]) / 1e9
-time_gibbs <- median(timing_results$time[timing_results$expr == "Gibbs_Sampling"]) / 1e9
+time_metropolis <- median(
+    timing_results$time[timing_results$expr == "Metropolis_Hastings"]
+) / 1e9
+time_gibbs <- median(
+    timing_results$time[timing_results$expr == "Gibbs_Sampling"]
+) / 1e9
 
 comparison_df <- data.frame(
     method = c(rep("Metropolis", 2), rep("Gibbs", 2)),
@@ -425,7 +417,7 @@ comparison_df <- data.frame(
         rep(round(time_gibbs, 2), 2)
     ),
     gweke = c(
-        round(daigs_df_metrop$geweke, 3),
+        round(diags_df_metrop$geweke, 3),
         round(diags_df_gibbs$geweke, 3)
     ),
     ess = c(
@@ -434,23 +426,15 @@ comparison_df <- data.frame(
     )
 )
 
-comp_table <- comparison_df %>%
-    knitr::kable("html",
-        caption = "Comparison of Diagnostics between Metropolis-Hastings and Gibbs Sampling",
-        col.names = c(
-            "Method", "Parameter", "Estimate", "2.5%", "97.5%",
-            "Median Time (seconds)", "Geweke Statistic Z-score",
-            "Effective Sample Size"
-        )
-    ) %>%
-    kableExtra::kable_styling(
-        full_width = FALSE,
-        position = "center",
-        bootstrap_options = c("striped", "hover", "condensed")
-    ) %>%
-    kableExtra::column_spec(1, bold = TRUE, color = "darkblue") %>%
-    kableExtra::column_spec(2:3, background = "lightgray")
-print(comp_table)
+knitr::kable(comparison_df,
+    caption = "Comparison of Diagnostics between Metropolis-Hastings and Gibbs Sampling",
+    col.names = c(
+        "Method", "Parameter", "Est.", "2.5%", "97.5%",
+        "Median Time(s))", "Geweke",
+        "ESS"
+    )
+) %>%
+    kableExtra::kable_classic()
 ```
 
 
